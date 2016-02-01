@@ -1,0 +1,72 @@
+---
+title: "Evaluating Exercise Form"
+author: "Dave Halderman"
+date: "January 31, 2016"
+output: html_document
+---
+
+#Summary
+This is a study of the data collected by the fitness trackers of 6 individuals. The goal is to predict how well they were performing a certain exercise based on the data from their fitness trackers.
+
+# Getting the Data
+
+```{r}
+## Download the data if needed
+if (!file.exists("pml-training.csv")) {
+    download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile="pml-training.csv", method="auto")
+}
+
+if (!file.exists("pml-testing.csv")) {
+    download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile="pml-testing.csv", method="auto")
+}
+
+## Load data into memory
+pmltraining <- read.csv("pml-training.csv", na.strings=c("NA","#DIV/0!",""))
+pmltesting <- read.csv("pml-testing.csv", na.strings=c("NA","#DIV/0!",""))
+
+```
+
+# Getting the Data Ready for Analysis
+To reproduce this work, you will need the following libraries installed and loaded: *lattice*, *ggplot2*, *caret*, *randomForest*, and *rpart*.
+```{r results='hide', message=FALSE}
+library("lattice"); library("ggplot2"); library("caret"); library("randomForest"); library("rpart")
+```
+```{r}
+## Lots of NAs, so we'll only grab the columns that have lots of data in them
+goodtraining <- pmltraining[,c(8:11,37:49,60:68,84:86,102,113:124,140,151:160)]
+goodtesting <- pmltesting[,c(8:11,37:49,60:68,84:86,102,113:124,140,151:160)]
+
+## Split out training set (60% training/40% our own testing set)
+inTrain <- createDataPartition(y=goodtraining$classe, p=0.6, list=FALSE)
+train <- goodtraining[inTrain, ]
+test <- goodtraining[-inTrain, ]
+```
+
+# Analyzing the Data
+The variable we are predicting is *classe*. Several methods from the class were considered. In the end a comparison was made between the random forest model and the decision tree model.
+
+## Random Forest Model
+```{r cache=TRUE}
+## Random Forest
+set.seed(42)
+model1 <- randomForest(classe ~ ., data=train)
+prediction1 <- predict(model1, test, type = "class")
+confusionMatrix(prediction1, test$classe)
+```
+
+## Decision Tree Model
+```{r}
+##Decision tree
+set.seed(42)
+model2 <- rpart(classe ~ ., data=train, method="class")
+prediction2 <- predict(model2, test, type = "class")
+confusionMatrix(prediction2, test$classe)
+```
+
+# Applying the Best Model
+The random forest model is, by far, the best model tested(99% vs. 71% accuracy). By applying this model to the test set, we can make our final predicion for the 20 test cases.
+```{r}
+## Apply best model to test set
+predictionfinal <- predict(model1, pmltesting, type = "class")
+predictionfinal
+```
